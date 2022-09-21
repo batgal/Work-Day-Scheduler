@@ -28,6 +28,31 @@ function color(time) {
 hoursOfTheDay.forEach((hr) => {
   const grid = $(
     `<form data-name"${hr.text}"
-        class="`
+        class="grid"></form>`
   );
+  const time = $(`<div class="flex items-center>${hr.text}</div>`);
+  const textArea = $(`<textarea name="${hr.text}"
+    ${color(hr)}>${store.getItem(hr.text) || ""}</textarea>`);
+  textArea.keydown((e) => {
+    if (e.keyCode == 13 && !e.shiftKey) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  const saveButton = $(`<button type="submit"></button>`);
+
+  grid.submit((e) => {
+    e.preventDefault();
+
+    const value = $(`textarea [name ="${hr.text}"]`).val();
+
+    store.setItem(hr.text, value);
+  });
+
+  grid.append(time);
+  grid.append(textArea);
+  grid.append(saveButton);
+
+  container.append(grid);
 });
