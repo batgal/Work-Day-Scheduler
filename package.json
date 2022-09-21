@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/batgal/Work-Day-Scheduler#readme",
   "dependencies": {
+    "babel": "^6.23.0",
+    "moment": "^2.29.4",
     "skypack": "^0.3.2"
   }
 }
