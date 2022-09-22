@@ -1,75 +1,158 @@
-import moment from "https://cdn.skypack.dev/moment@2.29.1";
-
-const store = window.localStorage;
-
-const container = `${".container"}`;
-
-const now = moment();
-
-const currentTime = { text: moment().format("h:00 A"), hour: moment().hour() };
-
-`${"#day"}.text(now.format("dddd MMMM DD, YYYY"))`;
-
-const range = (start, end, step) => {
-  return Array.from(
-    Array.from(Array(Math.ceil((end - start) / step)).keys()),
-    (x) => start + x * step
-  );
-};
-
-const hoursOfTheDay = Array.from(new Array(24)).map((v, i) => {
-  const text = moment().hour(i).format("h:00 A");
-  const hour = moment().hour(i);
-  return { text, hour };
-});
-
-function color(time) {
-  return time.text === currentTime.text
-    ? "bg-red-300"
-    : time.hour < now
-    ? "bg-gray-300"
-    : "bg-green-200";
+class TimeblockObj {
+  constructor(hour, todo) {
+    this.hour = hour;
+    this.todo = todo;
+  }
 }
 
-hoursOfTheDay.forEach((hr) => {
-  const grid = $(
-    `<form data-name="${hr.text}" class="grid grid-cols-12  border-gray-500 "></form>.`
-  );
+window.onload = function () {
+  const currentTimeblocks = getCurrentTimeblocks();
+  const currentTime = moment();
 
-  const time = $(
-    `<div class="flex items-center justify-center col-span-2 h-16">${hr.text}</div>`
-  );
+  displayCurrentDate(currentTime);
+  displayTimeblockRows(currentTime);
 
-  const textArea = $(
-    `<textarea name="${
-      hr.text
-    }" maxLength="50" style="resize: none; overflow: hidden;" class="col-span-8 h-16 p-6 ${color(
-      hr
-    )}">${store.getItem(hr.text) || ""}</textarea>`
-  );
+  document
+    .querySelector(".container")
+    .addEventListener("click", function (event) {
+      containerClicked(event, currentTimeblocks);
+    });
+  setTimeblockText(currentTimeblocks);
+};
 
-  textArea.keydown((e) => {
-    if (e.keyCode == 13 && !e.shiftKey) {
-      e.preventDefault();
-      return false;
+function getCurrentTimeblocks() {
+  const currentTimeblocks = localStorage.getItem("timeblockObjects");
+  return currentTimeblocks ? JSON.parse(currentTimeblocks) : [];
+}
+
+function displayCurrentDate(currentTime) {
+  document.getElementById("currentDay").textContent =
+    currentTime.format("dddd, MMMM Do");
+}
+
+function displayTimeblockRows(currentTime) {
+  const currentHour = currentTime.hour();
+  //working hours are 9-5 or 9-17 (military time)
+  for (let i = 9; i <= 17; i++) {
+    const timeblock = createTimeblockRow(i);
+    const hourCol = createCol(createHourDiv(i), 1);
+    const textArea = createCol(createTextArea(i, currentHour), 10);
+    const saveBtn = createCol(createSaveBtn(i), 1);
+    appendTimeblockColumns(timeblock, hourCol, textArea, saveBtn);
+    document.querySelector(".container").appendChild(timeblock);
+  }
+}
+
+function createTimeblockRow(hourId) {
+  const timeblock = document.createElement("div");
+  timeblock.classList.add("row");
+  timeblock.id = `timeblock-${hourId}`;
+  return timeblock;
+}
+
+function createCol(element, colSize) {
+  const col = document.createElement("div");
+  col.classList.add(`col-${colSize}`, "p-0");
+  col.appendChild(element);
+  return col;
+}
+
+function createHourDiv(hour) {
+  const hourCol = document.createElement("div");
+  hourCol.classList.add("hour");
+  hourCol.textContent = formatHour(hour);
+  return hourCol;
+}
+
+function formatHour(hour) {
+  const hourString = String(hour);
+  return moment(hourString, "h").format("hA");
+}
+
+function createTextArea(hour, currentHour) {
+  const textArea = document.createElement("textarea");
+  textArea.classList.add(getTextAreaBackgroundClass(hour, currentHour));
+  return textArea;
+}
+
+function getTextAreaBackgroundClass(hour, currentHour) {
+  return hour < currentHour
+    ? "past"
+    : hour === currentHour
+    ? "present"
+    : "future";
+}
+
+function createSaveBtn(hour) {
+  const saveBtn = document.createElement("button");
+  saveBtn.classList.add("saveBtn");
+  saveBtn.innerHTML = '<i class="fas fa-save"></i>';
+  saveBtn.setAttribute("data-hour", hour);
+  return saveBtn;
+}
+
+function appendTimeblockColumns(
+  timeblockRow,
+  hourCol,
+  textAreaCol,
+  saveBtnCol
+) {
+  const innerCols = [hourCol, textAreaCol, saveBtnCol];
+  for (let col of innerCols) {
+    timeblockRow.appendChild(col);
+  }
+}
+
+function containerClicked(event, timeblockList) {
+  if (isSaveButton(event)) {
+    const timeblockHour = getTimeblockHour(event);
+    const textAreaValue = getTextAreaValue(timeblockHour);
+    placeTimeblockInList(
+      new TimeblockObj(timeblockHour, textAreaValue),
+      timeblockList
+    );
+    saveTimeblockList(timeblockList);
+  }
+}
+
+function isSaveButton(event) {
+  return event.target.matches("button") || event.target.matches(".fa-save");
+}
+
+function getTimeblockHour(event) {
+  return event.target.matches(".fa-save")
+    ? event.target.parentElement.dataset.hour
+    : event.target.dataset.hour;
+}
+
+function getTextAreaValue(timeblockHour) {
+  return document.querySelector(`#timeblock-${timeblockHour} textarea`).value;
+}
+
+function placeTimeblockInList(newTimeblockObj, timeblockList) {
+  if (timeblockList.length > 0) {
+    for (let savedTimeblock of timeblockList) {
+      if (savedTimeblock.hour === newTimeblockObj.hour) {
+        savedTimeblock.todo = newTimeblockObj.todo;
+        return;
+      }
     }
-  });
+  }
+  timeblockList.push(newTimeblockObj);
+  return;
+}
 
-  const saveButton = $(
-    `<button type="submit" class="col-span-2 h-16 bg-indigo-500 text-white font-bold hover:bg-indigo-400 transition duration-500 ease-in-out"><i class="fas fa-save text-xl"></i></button>`
-  );
+function saveTimeblockList(timeblockList) {
+  localStorage.setItem("timeblockObjects", JSON.stringify(timeblockList));
+}
 
-  grid.submit((e) => {
-    e.preventDefault();
-
-    const value = $(`textarea[name="${hr.text}"]`).val();
-
-    store.setItem(hr.text, value);
-  });
-
-  grid.append(time);
-  grid.append(textArea);
-  grid.append(saveButton);
-
-  container.append(grid);
-});
+function setTimeblockText(timeblockList) {
+  if (timeblockList.length === 0) {
+    return;
+  } else {
+    for (let timeblock of timeblockList) {
+      document.querySelector(`#timeblock-${timeblock.hour} textarea`).value =
+        timeblock.todo;
+    }
+  }
+}
